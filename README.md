@@ -10,14 +10,13 @@ Groupe : Imran El Azri Ennassiri, Adel Noui, Tommy Ly, Ayman Munglee.
 
 Simulation numérique de la dynamique d'erreurs du code torique de Kitaev via un **canal de Pauli stochastique classique**. On travaille directement sur le **syndrome** — la grille des valeurs propres $B_p \in \{-1, +1\}$ — ce qui est exactement ce que voit un décodeur en pratique, sans avoir à manipuler les vecteurs d'état quantiques (dimension $2^{2L^2}$, inaccessible pour $L \geq 5$).
 
-Le notebook illustre les résultats des sections 8–12 du rapport.
-
 ---
 
 ## Contenu
 
 ```
-code_torique_simulation.ipynb   ← notebook principal
+code_torique_simulation.ipynb   ← notebook principal (visualisation complète)
+anyons_diffu.py                 ← script Python avec correction MWPM intégrée
 README.md                       ← ce fichier
 ```
 
@@ -26,10 +25,8 @@ README.md                       ← ce fichier
 ## Prérequis
 
 ```bash
-pip install numpy matplotlib tqdm
+pip install numpy scipy matplotlib tqdm pymatching
 ```
-
-Pas de dépendance à des bibliothèques de physique quantique — la simulation est purement classique sur le syndrome.
 
 ---
 
@@ -37,46 +34,53 @@ Pas de dépendance à des bibliothèques de physique quantique — la simulation
 
 | Section | Contenu | Lien rapport |
 |---|---|---|
-| 1. Modèle | Fonctions `edge_h/v`, `adjacent_plaquettes`, `step`, `simulate` | Déf. 8.1 |
+| 1. Modèle | Fonctions , , ,  | Déf. 8.1 |
 | 2. Animation | Heatmap syndrome + courbe anyons, L=30, p=0.01 | §9, §10 |
 | 3. Transition de phase | Densité d'anyons vs $p$ pour L=10/20/30 | Prop. 11.1 |
 | 4. Comparaison régimes | Snapshots sous-critique / critique / sur-critique | Thm. 12.1 |
 
 ---
 
+## Script  — correction MWPM
+
+Ce script étend le notebook en intégrant un décodeur **Minimum Weight Perfect Matching (MWPM)** via la bibliothèque . La correction est appliquée tous les  pas de temps pour mettre en évidence l'efficacité de l'algorithme.
+
+### Paramètres clés
+
+| Paramètre | Description |
+|---|---|
+|  | Taille de la grille ($n = 2L^2$ qubits) |
+|  | Probabilité d'erreur par arête et par pas |
+|  | Nombre de pas de temps |
+|  | Fréquence d'application du MWPM (tous les $k$ pas) |
+
+---
+
 ## Modèle physique
 
-**État** : `syndrome[i,j]` $\in \{-1, +1\}$ — valeur propre de l'opérateur plaquette $B_{(i,j)}$.  
-Une plaquette avec `syndrome = -1` contient un **anyon**.
+**État** :  $\in \{-1, +1\}$ — valeur propre de l'opérateur plaquette $B_{(i,j)}$.  
+Une plaquette avec  contient un **anyon**.
 
-**Pas de temps** : pour chaque arête $e$ du réseau (horizontales + verticales), on tire $q_e \sim \text{Bernoulli}(p)$. Si $q_e = 1$, les deux plaquettes adjacentes sont flippées :
-$$B_p \mapsto -B_p \quad \text{pour } p \text{ adjacent à } e.$$
+**Pas de temps** : pour chaque arête $e$ du réseau, on tire $q_e \sim 	ext{Bernoulli}(p)$. Si $q_e = 1$, les deux plaquettes adjacentes sont flippées.
 
-**Topologie torique** : les indices sont pris modulo $L$ — pas d'effet de bord.
-
----
-
-## Paramètres clés
-
-| Paramètre | Valeur par défaut | Description |
-|---|---|---|
-| `L` | 30 | Taille de la grille ($n = 2L^2$ qubits physiques) |
-| `p` | 0.01 | Probabilité d'erreur par arête et par pas |
-| `n_steps` | 300 | Nombre de pas de temps (animation) |
-| `p_seuil` | ≈ 0.103 | Seuil de la transition de phase (Dennis et al., 2002) |
+**Topologie torique** : indices pris modulo $L$ — pas d'effet de bord.
 
 ---
 
-## Ce que la simulation montre
+## Conclusions sur l'efficacité du MWPM
 
-- **Anyons toujours en nombre pair** — Proposition 9.2 du rapport (`np.sum(syndrome == -1)` toujours pair, quelle que soit la suite d'erreurs).
-- **Régime sous-critique** ($p \ll 0.103$) : anyons rares, isolés, dynamique lente.
-- **Régime critique** ($p \approx 0.103$) : amas d'anyons sans échelle caractéristique — connexion avec la percolation (Dennis et al., 2002).
-- **Régime sur-critique** ($p > 0.103$) : quasi-saturation du réseau, erreurs logiques inévitables.
+L'observation principale de la simulation est que **l'algorithme MWPM se révèle anormalement efficace, quelle que soit la valeur de $p$ et quelle que soit la taille de la grille $L$**. Cela a été vérifié pour des valeurs extrêmes :
 
-## Ce que la simulation ne montre pas
+- $p = 10^{-8}$ (quasi-absence d'erreurs)
+- $p pprox 1$ (saturation quasi-totale du réseau)
 
-La diffusion au sens quantique rigoureux, ni la mesure quantitative de l'invariance d'échelle à la transition — ces affirmations nécessiteraient des mesures de percolation supplémentaires. Le syndrome est une projection classique de l'état quantique : c'est une approximation valide pour modéliser le comportement du décodeur, pas l'évolution unitaire complète.
+Dans tous les cas, le décodeur maintient l'état logique avec une précision remarquable.
+
+**Ce que cela implique :**  
+Le seuil $p_{	ext{seuil}} pprox 0.103$ mis en évidence dans le rapport (Dennis et al., 2002) **n'a pas pu être reproduit numériquement** avec cette approche. La raison probable est que le paramètre $p$ seul ne suffit pas à caractériser le régime de la simulation telle qu'elle est implémentée : la fréquence de correction  constitue un second paramètre indépendant qui masque la transition de phase. En appliquant le MWPM à chaque pas (ou très fréquemment), on empêche les anyons de s'accumuler suffisamment pour provoquer une erreur logique, y compris au-delà du seuil théorique.
+
+**Piste d'amélioration :**  
+Pour observer la transition à $p_{	ext{seuil}}$, il faudrait étudier le taux d'erreur logique en fonction de $p$ **sans correction dynamique**, ou avec une correction suffisamment rare pour laisser les erreurs s'accumuler. La densité d'anyons et la longueur des chaînes d'erreurs sont les paramètres pertinents à mesurer pour caractériser le régime.
 
 ---
 
